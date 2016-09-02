@@ -1,0 +1,32 @@
+plugins {
+    id "com.github.maiflai.scalatest" version "0.12"
+}
+
+apply plugin: 'scala'
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+    compile 'org.scala-lang:scala-library:2.11.8'
+
+    testCompile 'org.scalatest:scalatest_2.11:2.2.6'
+    testCompile 'org.scalacheck:scalacheck_2.11:1.12.5'
+
+    testRuntime 'org.pegdown:pegdown:1.1.0'
+}
+
+sourceSets {
+    main {
+        scala {
+            srcDirs = ['src']
+        }
+    }
+    test {
+        scala {
+            srcDirs = ['test']
+        }
+    }
+}
