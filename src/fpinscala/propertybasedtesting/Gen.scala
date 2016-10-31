@@ -15,8 +15,10 @@ case class Gen[+A](sample: State[RNG, A]) {
   def map[B](f: A => B): Gen[B] =
     Gen(sample.map(f))
 
-  def map2[B,C](g: Gen[B])(f: (A,B) => C): Gen[C] =
+  def map2[B, C](g: Gen[B])(f: (A, B) => C): Gen[C] =
     Gen(sample.map2(g.sample)(f))
+
+  def unsized: SGen[A] = SGen(_ => this)
 
 }
 
@@ -37,9 +39,19 @@ object Gen {
   def union[A](g1: Gen[A], g2: Gen[A]): Gen[A] =
     boolean flatMap (b => if (b) g1 else g2)
 
-  def weighted[A](g1: (Gen[A],Double), g2: (Gen[A],Double)): Gen[A] = {
+  def weighted[A](g1: (Gen[A], Double), g2: (Gen[A], Double)): Gen[A] = {
     val threshold = g1._2.abs / (g1._2.abs + g2._2.abs)
     Gen(State(RNG.nextDouble).flatMap(d => if (d < threshold) g1._1.sample else g2._1.sample))
   }
+
+  def listOf[A](g: Gen[A]): SGen[List[A]] = SGen(n => listOfN(n, g))
 }
 
+case class SGen[+A](forSize: Int => Gen[A]) {
+  def apply(n: Int): Gen[A] = forSize(n)
+
+  def flatMap[B](f: A => SGen[B]): SGen[B] = SGen(n => forSize(n) flatMap (f(_).forSize(n)))
+
+  def map[B](f: A => B): SGen[B] = SGen(forSize(_) map f)
+
+}
