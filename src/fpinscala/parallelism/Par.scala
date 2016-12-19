@@ -74,9 +74,21 @@ object Par {
     case h :: t => map2(h, sequence(t))(_ :: _)
   }
 
+  def sequenceBalanced[A](as: IndexedSeq[Par[A]]): Par[IndexedSeq[A]] = fork {
+    if (as.isEmpty) unit(Vector())
+    else if (as.length == 1) map(as.head)(a => Vector(a))
+    else {
+      val (l, r) = as.splitAt(as.length / 2)
+      map2(sequenceBalanced(l), sequenceBalanced(r))(_ ++ _)
+    }
+  }
+
   def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = fork {
     sequence(ps.map(asyncF(f)))
   }
+
+  def parMap[A,B](as: IndexedSeq[A])(f: A => B): Par[IndexedSeq[B]] =
+    sequenceBalanced(as.map(asyncF(f)))
 
   def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = {
     val seq = as map asyncF(a => if (f(a)) List(a) else List())
@@ -111,7 +123,9 @@ object Par {
       run(es)(choices(run(es)(n).get))
 
   def choice_with_choiceN_basic[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
-    choiceN_basic(map(cond) { if (_) 0 else 1 })(List(t, f))
+    choiceN_basic(map(cond) {
+      if (_) 0 else 1
+    })(List(t, f))
 
   def choiceMap_basic[K, V](key: Par[K])(choices: Map[K, Par[V]]): Par[V] =
     es => choices(run(es)(key).get)(es)
@@ -120,7 +134,9 @@ object Par {
     es => choices(run(es)(pa).get)(es)
 
   def choice[A](cond: Par[Boolean])(t: Par[A], f: Par[A]): Par[A] =
-    chooser(cond) { if (_) t else f }
+    chooser(cond) {
+      if (_) t else f
+    }
 
   def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] =
     chooser(n)(choices(_))
@@ -131,7 +147,7 @@ object Par {
   def join[A](a: Par[Par[A]]): Par[A] =
     es => run(es)(a).get()(es)
 
-  def flatMap[A, B](a: Par[A])(f: A => Par[B]) =
+  def flatMap[A, B](a: Par[A])(f: A => Par[B]): Par[B] =
     join(map(a)(f))
 
   def join_with_flatMap[A](a: Par[Par[A]]): Par[A] =
