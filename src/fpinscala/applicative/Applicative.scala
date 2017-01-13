@@ -35,6 +35,26 @@ trait Applicative[F[_]] extends Functor[F] {
                           fc: F[C],
                           fd: F[D])(f: (A, B, C, D) => E): F[E] =
     apply(apply(apply(apply(unit(f.curried))(fa))(fb))(fc))(fd)
+
+  def product[G[_]](G: Applicative[G]): Applicative[({type f[x] = (F[x], G[x])})#f] = {
+    val self = this
+    new Applicative[({type f[x] = (F[x], G[x])})#f] {
+
+      override def unit[A](a: => A): (F[A], G[A]) = (self.unit(a), G.unit(a))
+
+      override def apply[A, B](fg: (F[A => B], G[A => B]))(a: (F[A], G[A])): (F[B], G[B]) = (self.apply(fg._1)(a._1), G.apply(fg._2)(a._2))
+    }
+  }
+
+  def compose[G[_]](G: Applicative[G]): Applicative[({type f[x] = F[G[x]]})#f] = {
+    val self = this
+    new Applicative[({type f[x] = F[G[x]]})#f] {
+      def unit[A](a: => A): F[G[A]] = self.unit(G.unit(a))
+
+      override def map2[A, B, C](fga: F[G[A]], fgb: F[G[B]])(f: (A, B) => C): F[G[C]] =
+        self.map2(fga, fgb)(G.map2(_, _)(f))
+    }
+  }
 }
 
 object Monads {
